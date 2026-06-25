@@ -252,16 +252,41 @@
   max-width: var(--container-xxl);
 }
 
-/* Prototype responsive rules (mobile collapse at 860px). */
+/* Prototype responsive rules. !important overrides the inline grid styles the
+   components set (matching the prototype). NOTE: the prototypes use slightly
+   different breakpoints for the shared nav/footer (Get Started: 860px; Sell:
+   820/1080px) — consolidated here to one set; the difference is not visible. */
+@media (max-width: 1080px) {
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .split-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .cards-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
 @media (max-width: 860px) {
   .fork-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 820px) {
+  .cards-3 {
     grid-template-columns: 1fr !important;
   }
   .croftly-navlinks {
     display: none !important;
   }
-  .footer-grid {
-    grid-template-columns: 1fr 1fr !important;
+}
+@media (max-width: 600px) {
+  .cards-2,
+  .cards-4 {
+    grid-template-columns: 1fr !important;
   }
 }
 
@@ -346,7 +371,7 @@ a {
 }
 nav a:hover,
 footer a:hover {
-  color: var(--scheme-text);
+  color: var(--scheme-text) !important;
 }
 
 /* Form controls (token-faithful; no prototype exists for auth/forms yet —
