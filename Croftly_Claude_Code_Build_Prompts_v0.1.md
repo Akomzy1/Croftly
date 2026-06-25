@@ -55,9 +55,9 @@ Create the Supabase schema and migrations for Croftly. Tables:
 - areas (id, name, region) — serving clusters.
 - collection_points (id, area_id, name, address).
 - producers (id, name, area_id, story, bio).
-- products (id, producer_id, name, category, cold_chain_class [ambient|chilled|highly_perishable], price_pence, unit, variable_weight_min, variable_weight_max, available_from, available_to, is_glut boolean, glut_clearing_price_pence nullable, quantity_available).
+- products (id, producer_id, name, category, cold_chain_class [ambient|chilled|highly_perishable], price_pence, price_floor_pence nullable, unit, variable_weight_min, variable_weight_max, available_from, available_to, is_glut boolean, glut_clearing_price_pence nullable, quantity_available). — price_floor_pence is the lowest the farmer will accept; "best value" matching may surface a low offered price but NEVER sells below this floor.
 - households (id, user_id, area_id, name).
-- intent_profiles (id, household_id, budget_pence, cadence [weekly|fortnightly], household_size, likes jsonb, dislikes jsonb, hard_allergens jsonb, adventurousness [exact|balanced|surprise], substitution_rule [never|within_category|anything_within_budget], fulfilment_pref [collection|courier]).
+- intent_profiles (id, household_id, budget_pence, cadence [weekly|fortnightly], household_size, likes jsonb, dislikes jsonb, hard_allergens jsonb, adventurousness [exact|balanced|surprise], priority_preference [best_value|freshest_closest|support_specific] default freshest_closest, substitution_rule [never|within_category|anything_within_budget], fulfilment_pref [collection|courier]).
 - orders (id, household_id, status, fulfilment_type, collection_point_id nullable, delivery_fee_pence, created_at).
 - order_items (id, order_id, product_id, producer_id, qty, line_price_pence, commission_rate, commission_pence, farmer_pence, is_glut, is_forward).
 - payouts (id, order_id, producer_id, farmer_pence, platform_pence, courier_pence).
@@ -80,7 +80,7 @@ Build Supabase email auth and a two-sided app shell. On sign-up, capture role (h
 
 ```
 Build the farmer console at /farm. A producer can:
-- Add/edit products: name, category, cold-chain class, price, unit, variable-weight range, quantity, availability window, and which area/cluster.
+- Add/edit products: name, category, cold-chain class, price, **an optional "lowest you'll accept" price floor**, unit, variable-weight range, quantity, availability window, and which area/cluster. Reassure the farmer plainly: even in best-value matching they are never undercut below their floor.
 - Mark a product as a GLUT with a clearing price (lower than normal) — this is surplus they want to move.
 - See their listings and a simple dashboard (active listings, incoming orders placeholder).
 This is the "supply broadcast" layer — lightweight, no AI. Keep it fast and practical, farmer-friendly copy (speak to fair pay and cutting waste, not tech).
@@ -91,7 +91,7 @@ This is the "supply broadcast" layer — lightweight, no AI. Keep it fast and pr
 ## PROMPT 5 — Household intent capture (Buyer-Intent Agent)
 
 ```
-Build household intent capture at /shop/setup. A conversational, friendly flow that collects: budget, cadence, household size, likes, dislikes, HARD allergens, adventurousness (exact / balanced / surprise me), substitution rule, and fulfilment preference. Save as an intent_profile.
+Build household intent capture at /shop/setup. A conversational, friendly flow that collects: budget, cadence, household size, likes, dislikes, HARD allergens, adventurousness (exact / balanced / surprise me), a **priority preference** (best value / freshest & closest / support specific farms — **default to "freshest & closest", never "best value"**), substitution rule, and fulfilment preference. Save as an intent_profile.
 
 Use the Anthropic SDK (Sonnet) ONLY to parse free-text input (e.g. "£30 a week, family of four, kids hate aubergine, nut allergy, surprise me") into the structured fields. Put this in /lib/ai/parseIntent.ts.
 
@@ -106,7 +106,7 @@ CRITICAL: hard allergens are captured and stored as a separate explicit field an
 Build the matching engine in /lib/matching (NO LLM calls in this module — deterministic only). Given an intent_profile and the available products in the household's area for the current window, compose a box:
 
 1. FILTER (deterministic): keep only products that are available this window, in the household's area, in the right cold-chain class for their fulfilment preference, and NOT containing any hard allergen, and not in their dislikes. The allergen filter is absolute.
-2. SCORE (deterministic): rank survivors by preference match (likes up, kid-friendly up if relevant), variety (penalise repeats), freshness, and a PRIORITY BOOST for glut products (to clear waste).
+2. SCORE (deterministic): rank survivors by preference match (likes up, kid-friendly up if relevant), variety (penalise repeats), freshness, and a PRIORITY BOOST for glut products (to clear waste). Apply the household's priority_preference as a weighting: in "best_value" mode, weight price heavily and prefer the cheapest farmer for an equivalent item; in "freshest_closest" (default), weight freshness/nearness; in "support_specific", boost the household's chosen farms. HARD RULE: never select a sale below a product's price_floor_pence — best-value matching may surface a farmer's lowest offered price but must never undercut their floor. This floor check is deterministic, like the allergen filter.
 3. COMPOSE (deterministic): pick the combination that maximises score while staying within budget, hitting a variety target, and only using available quantity. Greedy or simple constraint solver is fine for the prototype.
 
 Output a composed box (line items, qty, prices) + which items are glut/forward.

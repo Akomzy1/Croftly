@@ -66,6 +66,8 @@ Public **marketing pages stay server-rendered (SSR) and fully crawlable** — Ho
 ## Commission (money in integer pence everywhere)
 15% standard · 10% forward-committed · 8% glut/surplus. Farmer keeps the rest.
 
+**Farmer price floor (D20):** each product may carry a `price_floor_pence`. The opt-in "best value" household matching mode weights price and prefers the cheapest equivalent item, but the matching engine must NEVER select a sale below a product's floor — a deterministic guardrail, enforced like the allergen filter (outside the LLM). Default household priority is "freshest/closest", never "best value".
+
 ## Conventions
 - TypeScript strict; server components by default.
 - Supabase RLS on every table.
