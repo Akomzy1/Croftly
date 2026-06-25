@@ -270,8 +270,25 @@
     grid-template-columns: 1fr 1fr !important;
   }
 }
+@media (max-width: 960px) {
+  .build-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .build-grid > div:first-child > * {
+    position: static !important;
+  }
+  .faq-grid {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-8) !important;
+  }
+}
 @media (max-width: 860px) {
   .fork-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 560px) {
+  .boxes-grid {
     grid-template-columns: 1fr !important;
   }
 }
