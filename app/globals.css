@@ -231,7 +231,7 @@
   --scheme-border: var(--color-white-20);
   --scheme-accent: var(--color-tulip-tree-light);
 }
-.scheme-deep {
+.scheme-dark-2 {
   --scheme-bg: var(--color-olive-drab-darker);
   --scheme-text: var(--color-white);
   --scheme-text-muted: var(--color-white-50);
@@ -241,9 +241,28 @@
 .scheme-light,
 .scheme-soft,
 .scheme-dark,
-.scheme-deep {
+.scheme-dark-2 {
   background-color: var(--scheme-bg);
   color: var(--scheme-text);
+}
+
+/* Primary page container (var(--container-xxl) = 80rem), per prototype. */
+.croftly-container {
+  margin-inline: auto;
+  max-width: var(--container-xxl);
+}
+
+/* Prototype responsive rules (mobile collapse at 860px). */
+@media (max-width: 860px) {
+  .fork-2 {
+    grid-template-columns: 1fr !important;
+  }
+  .croftly-navlinks {
+    display: none !important;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
 }
 
 /* ============================================================
@@ -297,15 +316,60 @@
   --font-sans: var(--font-body);
 }
 
-/* ---- Base ---- */
+/* ---- Base (reproduced from prototype global styles) ---- */
+html {
+  -webkit-text-size-adjust: 100%;
+}
 body {
+  margin: 0;
   background: var(--surface-page);
   color: var(--text-body);
   font-family: var(--font-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
 }
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
   color: var(--text-strong);
-  line-height: var(--leading-heading);
+  line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);
+}
+::selection {
+  background: var(--color-olive-drab-lighter);
+}
+img {
+  display: block;
+}
+a {
+  transition: color var(--dur-base) var(--ease-standard);
+}
+nav a:hover,
+footer a:hover {
+  color: var(--scheme-text);
+}
+
+/* Form controls (token-faithful; no prototype exists for auth/forms yet —
+   DEVIATION flagged in the auth screens). */
+.croftly-input,
+.croftly-select {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: var(--text-regular);
+  color: var(--color-neutral-darkest);
+  background: var(--color-white);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-input);
+  padding: 0.6875rem 0.875rem;
+  transition: border-color var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard);
+}
+.croftly-input::placeholder {
+  color: var(--color-neutral-light);
+}
+.croftly-input:focus,
+.croftly-select:focus {
+  outline: none;
+  border-color: var(--color-olive-drab);
+  box-shadow: 0 0 0 3px var(--color-olive-drab-lightest);
 }

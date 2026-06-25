@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/croftly/button";
 
-// PLACEHOLDER (Prompt 1 scaffold). The real home page is built from
+// PLACEHOLDER (scaffold). The real home page is built from
 // /design-reference/Croftly Home (standalone).html in the marketing build.
 // This only confirms the scaffold runs with the Croftly design tokens wired in.
 export default function Home() {
@@ -18,8 +18,10 @@ export default function Home() {
         are built faithfully from the prototypes next.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
-        <Button size="lg">Get started</Button>
-        <Button size="lg" variant="outline">
+        <Button href="/get-started" size="lg">
+          Get started
+        </Button>
+        <Button href="/how-it-works" size="lg" variant="secondary">
           How it works
         </Button>
       </div>
