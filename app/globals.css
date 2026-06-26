@@ -380,6 +380,19 @@ h1, h2, h3, h4, h5, h6 {
 ::selection {
   background: var(--color-olive-drab-lighter);
 }
+
+/* PWA surface animations (reproduced from prototype). */
+@keyframes croftlyOfflineIn {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes croftlyInstallIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .croftly-install-banner { animation: none !important; }
+}
 img {
   display: block;
 }

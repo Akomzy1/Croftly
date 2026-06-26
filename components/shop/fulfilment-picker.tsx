@@ -8,6 +8,7 @@ import { Button } from "@/components/croftly/button";
 import { Icon, type IconName } from "@/components/croftly/icon";
 import { Field, Select } from "@/components/croftly/field";
 import { OrderStatusStub } from "@/components/shop/order-status-stub";
+import { useOnline, OfflineNote } from "@/components/pwa/online";
 import { formatPence } from "@/lib/money";
 import { track } from "@/lib/analytics";
 import type { CourierMatch } from "@/lib/fulfilment";
@@ -87,10 +88,12 @@ export function FulfilmentPicker({
   const [pointId, setPointId] = React.useState(collectionPoints[0]?.id ?? "");
 
   const [state, formAction, pending] = useActionState<PlaceOrderState, FormData>(placeOrder, {});
+  const { online } = useOnline();
 
   const deliveryPence = method === "courier" && courier ? courier.fee_pence : 0;
   const totalPence = subtotalPence + deliveryPence;
-  const canContinue = method === "collection" ? pointId !== "" : courierAvailable;
+  const methodOk = method === "collection" ? pointId !== "" : courierAvailable;
+  const canContinue = methodOk && online; // checkout needs a connection
 
   return (
     <div className="build-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "var(--space-12)", alignItems: "start" }}>
@@ -158,6 +161,11 @@ export function FulfilmentPicker({
           <form action={formAction} style={{ display: "grid", gap: "var(--space-3)" }}>
             <input type="hidden" name="method" value={method} />
             <input type="hidden" name="collection_point_id" value={method === "collection" ? pointId : ""} />
+            {!online && (
+              <OfflineNote>
+                You&apos;re offline — checkout needs a connection. Your box is saved; we&apos;ll reopen checkout the moment you reconnect.
+              </OfflineNote>
+            )}
             {state.error && (
               <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-potters-clay-dark)", background: "var(--color-tulip-tree-lighter)", border: "1px solid var(--color-tulip-tree-light)", borderRadius: "var(--radius-input)", padding: "0.625rem 0.75rem" }}>
                 {state.error}

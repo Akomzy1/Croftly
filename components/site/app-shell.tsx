@@ -1,6 +1,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { CroftlyLogo } from "@/components/croftly/logo";
+import { OnlineProvider } from "@/components/pwa/online";
+import { OfflineBanner } from "@/components/pwa/offline-banner";
+import { InstallBanner } from "@/components/pwa/install-banner";
 import type { Role } from "@/lib/auth/roles";
 
 // Role-aware product shell (the logged-in app chrome). The nav differs by role.
@@ -33,8 +36,10 @@ export function AppShell({
 }) {
   const links = NAV[role];
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "var(--surface-page)" }}>
-      <header
+    <OnlineProvider>
+      <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "var(--surface-page)" }}>
+        <OfflineBanner />
+        <header
         className="scheme-light"
         style={{
           borderBottom: "1px solid var(--border-default)",
@@ -99,9 +104,12 @@ export function AppShell({
         </div>
       )}
 
-      <main style={{ flex: 1, paddingInline: "var(--section-pad-x)", paddingBlock: "var(--section-pad-y)" }}>
-        <div className="croftly-container">{children}</div>
-      </main>
-    </div>
+        <main style={{ flex: 1, paddingInline: "var(--section-pad-x)", paddingBlock: "var(--section-pad-y)" }}>
+          <div className="croftly-container">{children}</div>
+        </main>
+
+        {!preview && <InstallBanner />}
+      </div>
+    </OnlineProvider>
   );
 }
