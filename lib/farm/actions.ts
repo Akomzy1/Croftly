@@ -49,6 +49,10 @@ export async function saveProduct(
   const availableTo = str(formData, "available_to") || null;
   const isGlut = formData.get("is_glut") != null;
   const glutPence = poundsToPence(str(formData, "glut_clearing_price"));
+  const allergens = str(formData, "allergens")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
 
   // --- Validation (deterministic; mirrors the DB constraints) ---
   if (!name) return { error: "Give your product a name." };
@@ -83,6 +87,7 @@ export async function saveProduct(
     is_glut: isGlut,
     glut_clearing_price_pence: isGlut ? glutPence : null,
     quantity_available: Math.round(quantity),
+    allergens,
   };
 
   const { error } = id

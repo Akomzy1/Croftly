@@ -86,6 +86,17 @@ export function ProductForm({ product, areaName }: { product?: Product; areaName
         <Input name="quantity" type="number" min="0" step="1" defaultValue={product?.quantity_available ?? 0} required />
       </Field>
 
+      <Field
+        label="Allergens it contains — optional"
+        hint="Separate with commas. We never match these to households who've excluded them."
+      >
+        <Input
+          name="allergens"
+          defaultValue={Array.isArray(product?.allergens) ? (product!.allergens as string[]).join(", ") : ""}
+          placeholder="e.g. nuts, celery, mustard"
+        />
+      </Field>
+
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <Field label="Variable weight — min (kg, optional)">
           <Input name="variable_weight_min" type="number" min="0" step="0.01" defaultValue={product?.variable_weight_min ?? ""} placeholder="e.g. 0.4" />

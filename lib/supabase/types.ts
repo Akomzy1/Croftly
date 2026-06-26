@@ -76,6 +76,7 @@ export type Database = {
           is_glut: boolean;
           glut_clearing_price_pence: number | null;
           quantity_available: number;
+          allergens: Json;
           created_at: string;
         };
         Insert: {
@@ -94,6 +95,7 @@ export type Database = {
           is_glut?: boolean;
           glut_clearing_price_pence?: number | null;
           quantity_available?: number;
+          allergens?: Json;
           created_at?: string;
         };
         Update: {
@@ -112,6 +114,7 @@ export type Database = {
           is_glut?: boolean;
           glut_clearing_price_pence?: number | null;
           quantity_available?: number;
+          allergens?: Json;
           created_at?: string;
         };
         Relationships: [
