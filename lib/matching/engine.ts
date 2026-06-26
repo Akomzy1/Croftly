@@ -165,14 +165,9 @@ export function composeBox(intent: IntentProfile, candidates: Candidate[], opts:
   const perCategory = new Map<string, number>();
   let subtotal = 0;
 
-  for (const { c, score } of scored) {
-    if (lines.length >= targetItems) break;
-    const used = perCategory.get(c.category) ?? 0;
-    if (used >= maxPerCategory) continue;
+  const lineOf = (c: Candidate, score: number): ComposedLine => {
     const unit = effectiveUnitPence(c);
-    if (subtotal + unit > budget) continue; // hard spend cap — never exceed budget
-
-    lines.push({
+    return {
       product_id: c.id,
       name: c.name,
       category: c.category,
@@ -185,13 +180,31 @@ export function composeBox(intent: IntentProfile, candidates: Candidate[], opts:
       is_glut: c.is_glut,
       is_forward: false, // forward market is Prompt 10
       score,
-    });
+    };
+  };
+
+  for (const { c, score } of scored) {
+    if (lines.length >= targetItems) break;
+    const used = perCategory.get(c.category) ?? 0;
+    if (used >= maxPerCategory) continue;
+    const unit = effectiveUnitPence(c);
+    if (subtotal + unit > budget) continue; // hard spend cap — never exceed budget
+
+    lines.push(lineOf(c, score));
     perCategory.set(c.category, used + 1);
     subtotal += unit;
   }
 
+  // Ranked, allergen-safe candidates not selected — offered as swaps in /shop/box.
+  const selected = new Set(lines.map((l) => l.product_id));
+  const alternatives = scored
+    .filter((s) => !selected.has(s.c.id))
+    .slice(0, 24)
+    .map(({ c, score }) => lineOf(c, score));
+
   return {
     lines,
+    alternatives,
     subtotal_pence: subtotal,
     item_count: lines.length,
     glut_count: lines.filter((l) => l.is_glut).length,

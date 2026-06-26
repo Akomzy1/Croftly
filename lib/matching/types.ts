@@ -23,6 +23,8 @@ export type ComposedLine = {
 
 export type ComposedBox = {
   lines: ComposedLine[];
+  /** Ranked, in-area, allergen-safe candidates NOT in the box — offered as swaps. */
+  alternatives: ComposedLine[];
   subtotal_pence: number;
   item_count: number;
   glut_count: number;
