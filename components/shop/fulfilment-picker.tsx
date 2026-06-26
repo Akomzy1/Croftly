@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useActionState } from "react";
+import { placeOrder, type PlaceOrderState } from "@/app/shop/checkout/actions";
 import { Card } from "@/components/croftly/card";
 import { Button } from "@/components/croftly/button";
 import { Icon, type IconName } from "@/components/croftly/icon";
@@ -83,6 +85,8 @@ export function FulfilmentPicker({
   const [method, setMethod] = React.useState<Method>(defaultMethod === "courier" && courierAvailable ? "courier" : "collection");
   const [pointId, setPointId] = React.useState(collectionPoints[0]?.id ?? "");
 
+  const [state, formAction, pending] = useActionState<PlaceOrderState, FormData>(placeOrder, {});
+
   const deliveryPence = method === "courier" && courier ? courier.fee_pence : 0;
   const totalPence = subtotalPence + deliveryPence;
   const canContinue = method === "collection" ? pointId !== "" : courierAvailable;
@@ -150,13 +154,21 @@ export function FulfilmentPicker({
             <span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-regular)", color: "var(--color-neutral-dark)" }}>Total</span>
             <span style={{ fontFamily: "var(--font-heading)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-h5)", color: "var(--color-neutral-darkest)" }}>{formatPence(totalPence)}</span>
           </div>
-          {/* PRODUCTION: enabled + wired to Stripe test checkout in Prompt 9. */}
-          <Button type="button" size="lg" disabled={!canContinue} style={{ width: "100%", justifyContent: "center", ...(canContinue ? {} : { background: "var(--color-neutral-lighter)", borderColor: "var(--color-neutral-lighter)", color: "var(--color-neutral-dark)", cursor: "not-allowed" }) }} iconRight={<Icon name="arrowRight" size={18} />}>
-            Continue to payment
-          </Button>
-          <p style={{ margin: 0, textAlign: "center", fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral)" }}>
-            Secure card payment (test mode) connects at the next step.
-          </p>
+          <form action={formAction} style={{ display: "grid", gap: "var(--space-3)" }}>
+            <input type="hidden" name="method" value={method} />
+            <input type="hidden" name="collection_point_id" value={method === "collection" ? pointId : ""} />
+            {state.error && (
+              <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-potters-clay-dark)", background: "var(--color-tulip-tree-lighter)", border: "1px solid var(--color-tulip-tree-light)", borderRadius: "var(--radius-input)", padding: "0.625rem 0.75rem" }}>
+                {state.error}
+              </p>
+            )}
+            <Button type="submit" size="lg" disabled={!canContinue || pending} style={{ width: "100%", justifyContent: "center", ...(canContinue && !pending ? {} : { background: "var(--color-neutral-lighter)", borderColor: "var(--color-neutral-lighter)", color: "var(--color-neutral-dark)", cursor: "not-allowed" }) }} iconRight={<Icon name="arrowRight" size={18} />}>
+              {pending ? "Placing order…" : "Pay & place order (test)"}
+            </Button>
+            <p style={{ margin: 0, textAlign: "center", fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral)" }}>
+              Test-mode checkout — no real charge. Nothing leaves your card.
+            </p>
+          </form>
         </Card>
 
         <Card padding="lg">

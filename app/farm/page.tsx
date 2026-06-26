@@ -5,9 +5,12 @@ import { Button } from "@/components/croftly/button";
 import { Card } from "@/components/croftly/card";
 import { Stat } from "@/components/croftly/stat";
 import { ProductList } from "@/components/farm/product-list";
+import { formatPence } from "@/lib/money";
+import type { FarmPayout } from "@/lib/farm/queries";
 import type { Product } from "@/lib/supabase/types";
 
-// Farmer console — the "supply broadcast" layer (Prompt 4). Lightweight, no AI.
+// Farmer console — the "supply broadcast" layer (Prompt 4) + incoming orders &
+// payouts (Prompt 9). Lightweight, no AI.
 // DEVIATION: no prototype exists for the product console; built to Croftly tokens.
 export default async function FarmPage() {
   const farm = await getFarmData();
@@ -16,8 +19,10 @@ export default async function FarmPage() {
 
   const preview = farm.status === "unconfigured";
   const products: Product[] = farm.status === "ok" ? farm.products : [];
+  const payouts: FarmPayout[] = farm.status === "ok" ? farm.payouts : [];
   const active = products.filter((p) => p.quantity_available > 0).length;
   const gluts = products.filter((p) => p.is_glut).length;
+  const earned = payouts.reduce((n, p) => n + p.farmer_pence, 0);
 
   return (
     <AppShell role="farmer" preview={preview}>
@@ -43,10 +48,31 @@ export default async function FarmPage() {
             <Stat value={String(gluts)} label="Glut deals live" />
           </Card>
           <Card padding="md">
-            {/* PRODUCTION: real incoming orders land here once checkout (Prompt 9) is wired. */}
-            <Stat value="0" label="Incoming orders" sub="Coming soon" />
+            <Stat value={String(payouts.length)} label="Incoming orders" sub={payouts.length > 0 ? `${formatPence(earned)} earned` : "None yet"} />
           </Card>
         </div>
+
+        {payouts.length > 0 && (
+          <div className="grid gap-4">
+            <h2 style={{ margin: 0, fontFamily: "var(--font-heading)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-h5)", color: "var(--color-neutral-darkest)" }}>Recent orders</h2>
+            <Card padding="none">
+              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {payouts.map((p, i) => (
+                  <li key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-4)", padding: "var(--space-4) var(--space-6)", borderTop: i === 0 ? "none" : "1px solid var(--color-ink-15)" }}>
+                    <div>
+                      <div style={{ fontFamily: "var(--font-heading)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-regular)", color: "var(--color-neutral-darkest)" }}>Order #{p.order_id.slice(0, 8)}</div>
+                      <div style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral)" }}>Croftly fee {formatPence(p.platform_pence)}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontFamily: "var(--font-heading)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-regular)", color: "var(--color-olive-drab-dark)" }}>{formatPence(p.farmer_pence)}</div>
+                      <div style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral)" }}>your payout</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
+        )}
 
         <ProductList products={products} />
       </div>
