@@ -173,6 +173,7 @@ export function composeBox(intent: IntentProfile, candidates: Candidate[], opts:
       category: c.category,
       producer_id: c.producer_id,
       producer_name: c.producer_name,
+      cold_chain_class: c.cold_chain_class,
       qty: 1,
       unit: c.unit,
       unit_pence: unit,

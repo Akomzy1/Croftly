@@ -12,6 +12,7 @@ export type ComposedLine = {
   category: string;
   producer_id: string;
   producer_name: string;
+  cold_chain_class: Product["cold_chain_class"];
   qty: number;
   unit: string;
   unit_pence: number; // effective per-unit price (glut clearing price if glut), never below the floor

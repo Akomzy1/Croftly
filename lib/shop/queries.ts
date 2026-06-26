@@ -2,14 +2,27 @@ import { createClient } from "@/lib/supabase/server";
 import { composeBox } from "@/lib/matching";
 import type { Candidate, ComposedBox } from "@/lib/matching";
 import { explainBox } from "@/lib/ai/explainBox";
-import type { IntentProfile, Product } from "@/lib/supabase/types";
+import { boxColdChainClass, matchCourier, type CourierMatch } from "@/lib/fulfilment";
+import type { ColdChainClass, CollectionPoint, IntentProfile, Product } from "@/lib/supabase/types";
+
+export type CollectionPointOption = Pick<CollectionPoint, "id" | "name" | "address">;
 
 export type ShopData =
   | { status: "unconfigured" }
   | { status: "anonymous" }
   | { status: "no_household" }
   | { status: "no_profile" }
-  | { status: "ok"; box: ComposedBox; explanation: string | null; profile: IntentProfile };
+  | {
+      status: "ok";
+      box: ComposedBox;
+      explanation: string | null;
+      profile: IntentProfile;
+      // Fulfilment (Prompt 8): collection points in the household's area + the
+      // cheapest viable mocked courier for the box's cold-chain class.
+      collectionPoints: CollectionPointOption[];
+      coldChainClass: ColdChainClass;
+      courier: CourierMatch | null;
+    };
 
 type ProductRow = Product & {
   producers: { name: string | null; area_id: string | null } | { name: string | null; area_id: string | null }[] | null;
@@ -33,6 +46,7 @@ export async function getShopData(today: string): Promise<ShopData> {
     .eq("user_id", user.id)
     .maybeSingle();
   if (!household) return { status: "no_household" };
+  const householdAreaId = household.area_id;
 
   const { data: profile } = await supabase
     .from("intent_profiles")
@@ -53,8 +67,18 @@ export async function getShopData(today: string): Promise<ShopData> {
     };
   });
 
-  const box = composeBox(profile, candidates, { areaId: household.area_id, today });
+  const box = composeBox(profile, candidates, { areaId: householdAreaId, today });
   const explanation = await explainBox(box, profile);
 
-  return { status: "ok", box, explanation, profile };
+  // Fulfilment options (Prompt 8): collection points in the household's area +
+  // the cheapest viable mocked courier for the box's cold-chain class.
+  let cpQuery = supabase.from("collection_points").select("id, name, address");
+  if (householdAreaId) cpQuery = cpQuery.eq("area_id", householdAreaId);
+  const { data: cps } = await cpQuery.order("name");
+  const collectionPoints = cps ?? [];
+
+  const coldChainClass = boxColdChainClass(box.lines);
+  const courier = matchCourier(coldChainClass);
+
+  return { status: "ok", box, explanation, profile, collectionPoints, coldChainClass, courier };
 }
