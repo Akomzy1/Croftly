@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "node --env-file=.env.local supabase/seed.mjs"
+    "seed": "node --env-file=.env.local supabase/seed.mjs",
+    "db:start": "npx --yes supabase@latest start",
+    "db:stop": "npx --yes supabase@latest stop",
+    "db:reset": "npx --yes supabase@latest db reset",
+    "db:push": "npx --yes supabase@latest db push"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",

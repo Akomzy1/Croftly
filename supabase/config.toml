@@ -1,0 +1,37 @@
+# Croftly — Supabase local dev config (used by `supabase start` / `supabase db reset`).
+# Cloud projects ignore most of this; it's for the local Docker stack.
+project_id = "croftly"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+# Local email testing UI (catches confirmation emails when confirmations are on).
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Off for local dev so demo sign-ups work without an email round-trip. The
+# household/producer row is provisioned by the 0003 trigger on insert regardless.
+enable_confirmations = false
