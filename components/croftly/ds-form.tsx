@@ -101,6 +101,46 @@ export function Textarea({
   );
 }
 
+export function Radio({
+  label,
+  checked,
+  defaultChecked,
+  onChange,
+  style = {},
+  ...props
+}: {
+  label?: React.ReactNode;
+} & React.InputHTMLAttributes<HTMLInputElement>) {
+  const [internal, setInternal] = React.useState(!!defaultChecked);
+  const isControlled = checked !== undefined;
+  const on = isControlled ? checked : internal;
+  const toggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isControlled) setInternal(e.target.checked);
+    onChange?.(e);
+  };
+  return (
+    <label style={{ display: "inline-flex", alignItems: "center", gap: "0.625rem", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "var(--text-regular)", color: "var(--scheme-text, var(--color-neutral-darkest))", ...style }}>
+      <span
+        style={{
+          width: "1.25rem",
+          height: "1.25rem",
+          borderRadius: "999px",
+          border: `1px solid ${on ? "var(--color-olive-drab)" : "var(--scheme-border, var(--color-ink-20))"}`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          transition: "border-color var(--dur-fast) var(--ease-standard)",
+        }}
+      >
+        {on && <span style={{ width: "0.625rem", height: "0.625rem", borderRadius: "999px", background: "var(--color-olive-drab)" }} />}
+      </span>
+      <input type="radio" checked={on} onChange={toggle} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} {...props} />
+      {label}
+    </label>
+  );
+}
+
 export function Checkbox({
   label,
   checked,

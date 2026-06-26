@@ -1,8 +1,9 @@
 import * as React from "react";
 import { Card } from "@/components/croftly/card";
+import { Icon } from "@/components/croftly/icon";
 
 // Shared "How it works" helpers — reproduced verbatim from the prototype HiW
-// helpers (HwIcon, IconChip, StepBlock).
+// helpers (HwIcon, IconChip, StepBlock, OptionCard, DeliveryCard).
 
 const hwPaths: Record<string, React.ReactNode> = {
   sliders: (
@@ -123,6 +124,65 @@ export function StepBlock({
         <h3 style={{ margin: 0, fontFamily: "var(--font-heading)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-h5)", color: "var(--color-neutral-darkest)", textWrap: "balance" }}>{title}</h3>
         <p style={{ margin: "var(--space-4) 0 0", fontFamily: "var(--font-body)", fontSize: "var(--text-regular)", color: "var(--color-neutral-dark)", lineHeight: "var(--leading-normal)", textWrap: "pretty" }}>{body}</p>
       </div>
+    </Card>
+  );
+}
+
+// Box-type option card (mode, not product — no price).
+export function OptionCard({ icon, tone, label, title, body, points, best }: { icon: React.ReactNode; tone?: ChipTone; label: string; title: string; body: string; points: string[]; best: string }) {
+  return (
+    <Card padding="lg" style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", height: "100%" }}>
+      <IconChip tone={tone}>{icon}</IconChip>
+      <div>
+        <p style={{ margin: "0 0 var(--space-2)", fontFamily: "var(--font-body)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-small)", letterSpacing: "0.02em", textTransform: "uppercase", color: "var(--color-neutral)" }}>{label}</p>
+        <h3 style={{ margin: 0, fontFamily: "var(--font-heading)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-h5)", color: "var(--color-neutral-darkest)" }}>{title}</h3>
+      </div>
+      <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: "var(--text-regular)", color: "var(--color-neutral-dark)", lineHeight: "var(--leading-normal)" }}>{body}</p>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-3)" }}>
+        {points.map((p, i) => (
+          <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", fontFamily: "var(--font-body)", fontSize: "var(--text-regular)", color: "var(--color-neutral-darker)", lineHeight: "var(--leading-snug)" }}>
+            <span style={{ flexShrink: 0, color: "var(--color-olive-drab)", marginTop: "1px" }}>
+              <Icon name="check" size={18} stroke={2.4} />
+            </span>
+            {p}
+          </li>
+        ))}
+      </ul>
+      <div style={{ marginTop: "auto", paddingTop: "var(--space-5)", borderTop: "1px solid var(--color-ink-15)", fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral)" }}>
+        <span style={{ fontWeight: "var(--weight-semibold)", color: "var(--color-neutral-darker)" }}>Best for </span>
+        {best}
+      </div>
+    </Card>
+  );
+}
+
+// Delivery / collection option card.
+export function DeliveryCard({ icon, tone, title, price, priceNote, body, points }: { icon: React.ReactNode; tone?: ChipTone; title: string; price: string; priceNote: string; body: string; points: string[] }) {
+  const accent = tone === "sky" ? "var(--color-danube-dark)" : "var(--color-olive-drab-dark)";
+  const tick = tone === "sky" ? "var(--color-danube)" : "var(--color-olive-drab)";
+  return (
+    <Card padding="lg" style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", height: "100%" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)" }}>
+        <IconChip tone={tone}>{icon}</IconChip>
+        <div>
+          <h3 style={{ margin: 0, fontFamily: "var(--font-heading)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-h5)", color: "var(--color-neutral-darkest)" }}>{title}</h3>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem", marginTop: "0.15rem" }}>
+            <span style={{ fontFamily: "var(--font-heading)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-h6)", color: accent }}>{price}</span>
+            <span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral)" }}>{priceNote}</span>
+          </div>
+        </div>
+      </div>
+      <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: "var(--text-regular)", color: "var(--color-neutral-dark)", lineHeight: "var(--leading-normal)", textWrap: "pretty" }}>{body}</p>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-3)" }}>
+        {points.map((p, i) => (
+          <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", fontFamily: "var(--font-body)", fontSize: "var(--text-regular)", color: "var(--color-neutral-darker)", lineHeight: "var(--leading-snug)" }}>
+            <span style={{ flexShrink: 0, color: tick, marginTop: "1px" }}>
+              <Icon name="check" size={18} stroke={2.4} />
+            </span>
+            {p}
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
