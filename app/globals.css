@@ -404,6 +404,40 @@ footer a:hover {
   color: var(--scheme-text) !important;
 }
 
+/* Quiet inline link (routes a secondary reader) — reproduced from prototype. */
+.croftly-quietlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-body);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-regular);
+  color: var(--scheme-accent);
+  text-decoration: none;
+}
+.croftly-quietlink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.croftly-quietlink svg {
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+.croftly-quietlink:hover svg {
+  transform: translateX(2px);
+}
+
+/* Real-photo placeholder slot (user-fillable in the prototype). */
+.croftly-photo-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-neutral-lightest);
+  color: var(--color-neutral-light);
+  font-family: var(--font-body);
+  font-size: var(--text-small);
+  text-align: center;
+}
+
 /* Form controls (token-faithful; no prototype exists for auth/forms yet —
    DEVIATION flagged in the auth screens). */
 .croftly-input,
