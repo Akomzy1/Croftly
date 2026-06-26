@@ -9,6 +9,7 @@ import { Icon, type IconName } from "@/components/croftly/icon";
 import { Field, Select } from "@/components/croftly/field";
 import { OrderStatusStub } from "@/components/shop/order-status-stub";
 import { formatPence } from "@/lib/money";
+import { track } from "@/lib/analytics";
 import type { CourierMatch } from "@/lib/fulfilment";
 import type { CollectionPointOption } from "@/lib/shop/queries";
 import type { FulfilmentType } from "@/lib/supabase/types";
@@ -162,7 +163,7 @@ export function FulfilmentPicker({
                 {state.error}
               </p>
             )}
-            <Button type="submit" size="lg" disabled={!canContinue || pending} style={{ width: "100%", justifyContent: "center", ...(canContinue && !pending ? {} : { background: "var(--color-neutral-lighter)", borderColor: "var(--color-neutral-lighter)", color: "var(--color-neutral-dark)", cursor: "not-allowed" }) }} iconRight={<Icon name="arrowRight" size={18} />}>
+            <Button type="submit" size="lg" disabled={!canContinue || pending} onClick={() => track("checkout_pay_clicked", { method })} style={{ width: "100%", justifyContent: "center", ...(canContinue && !pending ? {} : { background: "var(--color-neutral-lighter)", borderColor: "var(--color-neutral-lighter)", color: "var(--color-neutral-dark)", cursor: "not-allowed" }) }} iconRight={<Icon name="arrowRight" size={18} />}>
               {pending ? "Placing order…" : "Pay & place order (test)"}
             </Button>
             <p style={{ margin: 0, textAlign: "center", fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral)" }}>

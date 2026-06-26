@@ -7,6 +7,7 @@ import { Button } from "@/components/croftly/button";
 import { Field, Input, Select } from "@/components/croftly/field";
 import { saveIntent, parseIntentAction, type SaveIntentState } from "@/app/shop/setup/actions";
 import { penceToPoundsInput } from "@/lib/money";
+import { track } from "@/lib/analytics";
 import type { IntentProfile, PriorityPreference } from "@/lib/supabase/types";
 
 // The three priorities the matcher can optimise for — reproduced verbatim from
@@ -105,6 +106,7 @@ export function IntentForm({ profile }: { profile?: IntentProfile | null }) {
   async function fillFromDescription() {
     setParsing(true);
     setParseNote(null);
+    track("intent_ai_assist_used");
     const p = await parseIntentAction(description);
     setParsing(false);
     if (!p) {

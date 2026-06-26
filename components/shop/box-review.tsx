@@ -8,6 +8,7 @@ import { Icon } from "@/components/croftly/icon";
 import { MoneySplit } from "@/components/croftly/money-split";
 import { formatPence } from "@/lib/money";
 import { splitLine, boxFinancials } from "@/lib/commission";
+import { track } from "@/lib/analytics";
 import type { ComposedLine } from "@/lib/matching";
 
 type Slot = { line: ComposedLine; removed: boolean; approved: boolean };
@@ -159,7 +160,7 @@ export function BoxReview({
             </span>
           )}
           {canCheckout ? (
-            <Button href="/shop/checkout" size="lg" style={{ width: "100%", justifyContent: "center" }} iconRight={<Icon name="check" size={18} stroke={2.2} />}>
+            <Button href="/shop/checkout" size="lg" onClick={() => track("box_approved", { total: fin.subtotal_pence })} style={{ width: "100%", justifyContent: "center" }} iconRight={<Icon name="check" size={18} stroke={2.2} />}>
               Approve &amp; checkout
             </Button>
           ) : (
