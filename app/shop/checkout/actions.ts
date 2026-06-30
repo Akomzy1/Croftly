@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getShopData } from "@/lib/shop/queries";
 import { getStripe } from "@/lib/stripe/client";
 import { splitLine } from "@/lib/commission";
+import { courierFeePence, belowDeliveryMinimum, deliveryShortfallPence } from "@/lib/fulfilment";
+import { formatPence } from "@/lib/money";
 import type { FulfilmentType } from "@/lib/supabase/types";
 
 export type PlaceOrderState = { error?: string };
@@ -34,13 +36,25 @@ export async function placeOrder(_prev: PlaceOrderState, formData: FormData): Pr
   const { box, courier } = data;
   if (box.lines.length === 0) return { error: "Your box is empty." };
 
+  // DELIVERY-only soft minimum (D14): courier baskets below MIN_DELIVERY_ORDER_PENCE
+  // are nudged toward free collection, not silently rejected. Collection has NO
+  // minimum, ever — so this check is gated on the courier path only and the
+  // message always offers the no-minimum collection path. (Server-side guard;
+  // the UI surfaces the same nudge.)
+  if (method === "courier" && belowDeliveryMinimum(box.subtotal_pence)) {
+    const more = formatPence(deliveryShortfallPence(box.subtotal_pence));
+    return { error: `Add ${more} more for delivery — or collect this order free from a nearby point, with no minimum.` };
+  }
+
   const { data: household } = await supabase.from("households").select("id").eq("user_id", user.id).maybeSingle();
   if (!household) return { error: "We couldn't find your household profile." };
 
   const admin = createAdminClient();
   if (!admin) return { error: "Checkout isn't fully configured yet (missing service-role key)." };
 
-  const deliveryFee = method === "courier" && courier ? courier.fee_pence : 0;
+  // Free delivery once the basket clears FREE_DELIVERY_THRESHOLD_PENCE; otherwise
+  // the courier fee is passed through at cost. Collection is always £0.
+  const deliveryFee = method === "courier" && courier ? courierFeePence(box.subtotal_pence, courier.fee_pence) : 0;
   const totalPence = box.subtotal_pence + deliveryFee;
 
   // PRODUCTION: create a Stripe Checkout Session / PaymentIntent and only create
