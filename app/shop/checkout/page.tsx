@@ -3,13 +3,14 @@ import { getShopData } from "@/lib/shop/queries";
 import { COLD_CHAIN_LABEL } from "@/lib/fulfilment";
 import { AppShell } from "@/components/site/app-shell";
 import { Button } from "@/components/croftly/button";
-import { FulfilmentPicker } from "@/components/shop/fulfilment-picker";
+import { FulfilmentPicker, type CourierOption } from "@/components/shop/fulfilment-picker";
 
-// /shop/checkout — fulfilment selection (Prompt 8): collection (free) or the
-// mocked cheapest-viable courier, with an order-status stub. Payment is Prompt 9.
+// /shop/checkout — fulfilment selection: collection (free) or the rate-shopped
+// courier quote (one job per farm; simulated in the prototype), with a status stub.
 export default async function ShopCheckoutPage() {
   const today = new Date().toISOString().slice(0, 10);
-  const data = await getShopData(today);
+  // quoteCourier: produce the authoritative live courier quote here (not on /shop).
+  const data = await getShopData(today, { quoteCourier: true });
 
   if (data.status === "anonymous") redirect("/auth/sign-in");
   if (data.status === "no_household") redirect("/farm");
@@ -31,7 +32,20 @@ export default async function ShopCheckoutPage() {
     );
   }
 
-  const { box, collectionPoints, courier, coldChainClass, profile } = data;
+  const { box, collectionPoints, courierQuote, coldChainClass, profile } = data;
+
+  // Normalise the live quote for the picker (summed per-farm legs).
+  const courierOption: CourierOption | null = courierQuote
+    ? {
+        fee_pence: courierQuote.total_fee_pence,
+        label:
+          courierQuote.legs.length > 1
+            ? `${courierQuote.legs.length} farms · ${courierQuote.provider}`
+            : courierQuote.legs[0]?.quote.service ?? courierQuote.provider,
+        eta: courierQuote.eta,
+        legs: courierQuote.legs.map((l) => ({ producer_name: l.producer_name, fee_pence: l.quote.fee_pence })),
+      }
+    : null;
 
   if (box.lines.length === 0) {
     return (
@@ -65,7 +79,7 @@ export default async function ShopCheckoutPage() {
         <FulfilmentPicker
           subtotalPence={box.subtotal_pence}
           collectionPoints={collectionPoints}
-          courier={courier}
+          courier={courierOption}
           coldChainLabel={COLD_CHAIN_LABEL[coldChainClass]}
           defaultMethod={profile.fulfilment_pref}
         />

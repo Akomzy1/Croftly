@@ -15,12 +15,20 @@ import {
   courierFeePence,
   belowDeliveryMinimum,
   deliveryShortfallPence,
-  type CourierMatch,
 } from "@/lib/fulfilment";
 import type { CollectionPointOption } from "@/lib/shop/queries";
 import type { FulfilmentType } from "@/lib/supabase/types";
 
 type Method = FulfilmentType;
+
+// Normalised courier option for display. Built from the LIVE box quote (the
+// summed cheapest-viable per-farm legs); `legs` is shown when a box spans farms.
+export type CourierOption = {
+  fee_pence: number;
+  label: string;
+  eta: string;
+  legs?: { producer_name: string; fee_pence: number }[];
+};
 
 function OptionCard({
   selected,
@@ -84,7 +92,7 @@ export function FulfilmentPicker({
 }: {
   subtotalPence: number;
   collectionPoints: CollectionPointOption[];
-  courier: CourierMatch | null;
+  courier: CourierOption | null;
   coldChainLabel: string;
   defaultMethod: FulfilmentType;
 }) {
@@ -144,7 +152,7 @@ export function FulfilmentPicker({
           title="Courier to your door"
           sub={
             courier
-              ? `${courier.name} · ${courier.eta}`
+              ? `${courier.label} · ${courier.eta}`
               : `No courier can carry ${coldChainLabel.toLowerCase()} items to you yet — choose collection.`
           }
           price={courier ? formatPence(courier.fee_pence) : "—"}
@@ -165,8 +173,21 @@ export function FulfilmentPicker({
         {method === "courier" && courier && !belowDeliveryMin && (
           <Card padding="md">
             <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral-dark)", lineHeight: "var(--leading-normal)" }}>
-              We match your box to <strong style={{ color: "var(--color-neutral-darkest)" }}>{courier.name}</strong> — the cheapest courier that can carry your {coldChainLabel.toLowerCase()} box. The fee is passed through at cost; Croftly doesn&apos;t mark it up. There&apos;s no delivery for the farm to run.
+              We match your box to <strong style={{ color: "var(--color-neutral-darkest)" }}>{courier.label}</strong> — the cheapest courier that can carry your {coldChainLabel.toLowerCase()} box. The fee is passed through at cost; Croftly doesn&apos;t mark it up. There&apos;s no delivery for the farm to run.
             </p>
+            {courier.legs && courier.legs.length > 1 && (
+              <div style={{ marginTop: "var(--space-3)", display: "grid", gap: "0.35rem" }}>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-small)", fontWeight: "var(--weight-medium)", color: "var(--color-neutral-darkest)" }}>
+                  Picked up from {courier.legs.length} farms:
+                </span>
+                {courier.legs.map((leg, i) => (
+                  <span key={i} style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral-dark)" }}>
+                    <span>{leg.producer_name}</span>
+                    <span>{formatPence(leg.fee_pence)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </Card>
         )}
       </div>

@@ -1,15 +1,21 @@
 import type { ColdChainClass } from "@/lib/supabase/types";
 
-// Mocked courier-match (Prompt 8). DETERMINISTIC, no LLM, no real API.
+// Cheap ESTIMATE courier-match (Prompt 8). DETERMINISTIC, no LLM, no real API.
+//
+// Used only for a pre-checkout ESTIMATE on /shop and /shop/box (no addresses
+// needed, no network call). The full per-farm quote is produced at checkout via
+// lib/fulfilment/quote.ts → quoteBoxCourier (also a simulation in the prototype).
 //
 // The platform ORCHESTRATES logistics; it never owns or employs a fleet
-// (CLAUDE.md rule 2). We filter mock couriers by the box's cold-chain class
-// (the most perishable item sets it), then return the cheapest viable one.
+// (CLAUDE.md rule 2). We filter simulated couriers by the box's cold-chain class
+// (the most perishable item sets it), then return the cheapest viable one. Naming
+// reflects the intended lead providers (Uber Direct on-demand; Stuart specialist).
 //
-// PRODUCTION: replace this mock with a real aggregator — EasyPost / Sendcloud
-// for ambient parcels + an on-demand API (Uber Direct / Stuart) for chilled &
-// highly-perishable, temperature-controlled runs. The selection stays "cheapest
-// viable courier that can carry this cold-chain class".
+// PRODUCTION: replace this simulation with a multi-carrier aggregator (Sendcloud
+// or EasyPost) for ambient goods, and an on-demand API for chilled/same-day —
+// Uber Direct as the lead (widest UK coverage), Stuart as the food-specialist
+// fallback. Final provider choice is region-dependent and must be confirmed
+// against real coverage + rates for the chosen pilot region.
 
 export type CourierMatch = {
   name: string;
@@ -19,11 +25,12 @@ export type CourierMatch = {
 
 type MockCourier = CourierMatch & { handles: ColdChainClass[] };
 
-// Pricier than free collection, and rising with the cold-chain demands.
+// Pricier than free collection, and rising with the cold-chain demands. Lead-first
+// within each tier (ambient → aggregator; chilled → Uber Direct; specialist → Stuart).
 const MOCK_COURIERS: MockCourier[] = [
-  { name: "PedalPost (local cycle courier)", handles: ["ambient"], fee_pence: 299, eta: "Same day · 2–4 hrs" },
-  { name: "Rural Routes (local van)", handles: ["ambient", "chilled"], fee_pence: 449, eta: "Next day" },
-  { name: "ChillRun (refrigerated)", handles: ["ambient", "chilled", "highly_perishable"], fee_pence: 690, eta: "Next day · temperature-controlled" },
+  { name: "Sendcloud (aggregator)", handles: ["ambient"], fee_pence: 299, eta: "1–2 days" },
+  { name: "Uber Direct (on-demand)", handles: ["ambient", "chilled"], fee_pence: 449, eta: "Same day · on-demand" },
+  { name: "Stuart (food specialist)", handles: ["ambient", "chilled", "highly_perishable"], fee_pence: 690, eta: "Same day · temperature-controlled" },
 ];
 
 /** Cheapest mock courier that can carry the box's cold-chain class, or null if none. */
