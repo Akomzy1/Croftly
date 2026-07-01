@@ -1,9 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { composeBox } from "@/lib/matching";
 import type { Candidate, ComposedBox } from "@/lib/matching";
 import { explainBox } from "@/lib/ai/explainBox";
-import { boxColdChainClass, matchCourier, type CourierMatch } from "@/lib/fulfilment";
-import type { ColdChainClass, CollectionPoint, IntentProfile, Product } from "@/lib/supabase/types";
+import {
+  boxColdChainClass,
+  matchCourier,
+  quoteBoxCourier,
+  addressFromHousehold,
+  addressFromPickup,
+  type CourierMatch,
+  type BoxCourierQuote,
+  type PickupInfo,
+} from "@/lib/fulfilment";
+import type { ColdChainClass, CollectionPoint, IntentProfile, Product, ProducerPickup } from "@/lib/supabase/types";
 
 export type CollectionPointOption = Pick<CollectionPoint, "id" | "name" | "address">;
 
@@ -21,7 +31,11 @@ export type ShopData =
       // cheapest viable mocked courier for the box's cold-chain class.
       collectionPoints: CollectionPointOption[];
       coldChainClass: ColdChainClass;
+      // Cheap estimate for /shop + /shop/box (no addresses / network).
       courier: CourierMatch | null;
+      // Authoritative LIVE quote (rate-shopped per farm) — only present when
+      // getShopData is called with { quoteCourier: true } (i.e. at checkout).
+      courierQuote: BoxCourierQuote | null;
     };
 
 type ProductRow = Product & {
@@ -31,7 +45,7 @@ type ProductRow = Product & {
 // Compose the logged-in household's box: deterministic matching (no LLM), then a
 // cosmetic explanation (Sonnet). The engine call and the explanation are kept
 // strictly separate (CLAUDE.md rules 3 & 4).
-export async function getShopData(today: string): Promise<ShopData> {
+export async function getShopData(today: string, opts?: { quoteCourier?: boolean }): Promise<ShopData> {
   const supabase = await createClient();
   if (!supabase) return { status: "unconfigured" };
 
@@ -42,7 +56,7 @@ export async function getShopData(today: string): Promise<ShopData> {
 
   const { data: household } = await supabase
     .from("households")
-    .select("id, area_id")
+    .select("id, area_id, address_line, city, postcode, lat, lng, contact_name, contact_phone")
     .eq("user_id", user.id)
     .maybeSingle();
   if (!household) return { status: "no_household" };
@@ -78,7 +92,28 @@ export async function getShopData(today: string): Promise<ShopData> {
   const collectionPoints = cps ?? [];
 
   const coldChainClass = boxColdChainClass(box.lines);
-  const courier = matchCourier(coldChainClass);
+  const courier = matchCourier(coldChainClass); // cheap estimate for non-checkout pages
 
-  return { status: "ok", box, explanation, profile, collectionPoints, coldChainClass, courier };
+  // Live, authoritative courier quote — only at checkout (avoids a courier API call
+  // on every shop/box render, and needs the real pickup + dropoff addresses).
+  let courierQuote: BoxCourierQuote | null = null;
+  if (opts?.quoteCourier && box.lines.length > 0) {
+    const dropoff = addressFromHousehold(household);
+    if (dropoff) {
+      // producer_pickup is owner/service-role only (RLS) — read it via the admin client.
+      const admin = createAdminClient();
+      const producerIds = [...new Set(box.lines.map((l) => l.producer_id))];
+      const { data: pickupRows } = admin
+        ? await admin.from("producer_pickup").select("*").in("producer_id", producerIds)
+        : { data: null as ProducerPickup[] | null };
+      const pickups = new Map<string, PickupInfo>();
+      for (const row of (pickupRows ?? []) as ProducerPickup[]) {
+        const name = box.lines.find((l) => l.producer_id === row.producer_id)?.producer_name ?? "A local farm";
+        pickups.set(row.producer_id, { producer_name: name, pickup: addressFromPickup(row) });
+      }
+      courierQuote = await quoteBoxCourier(box, pickups, dropoff);
+    }
+  }
+
+  return { status: "ok", box, explanation, profile, collectionPoints, coldChainClass, courier, courierQuote };
 }

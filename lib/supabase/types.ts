@@ -122,11 +122,28 @@ export type Database = {
         ];
       };
       households: {
-        Row: { id: string; user_id: string; area_id: string | null; name: string; created_at: string };
-        Insert: { id?: string; user_id: string; area_id?: string | null; name: string; created_at?: string };
-        Update: { id?: string; user_id?: string; area_id?: string | null; name?: string; created_at?: string };
+        Row: { id: string; user_id: string; area_id: string | null; name: string; address_line: string | null; city: string | null; postcode: string | null; lat: number | null; lng: number | null; contact_name: string | null; contact_phone: string | null; created_at: string };
+        Insert: { id?: string; user_id: string; area_id?: string | null; name: string; address_line?: string | null; city?: string | null; postcode?: string | null; lat?: number | null; lng?: number | null; contact_name?: string | null; contact_phone?: string | null; created_at?: string };
+        Update: { id?: string; user_id?: string; area_id?: string | null; name?: string; address_line?: string | null; city?: string | null; postcode?: string | null; lat?: number | null; lng?: number | null; contact_name?: string | null; contact_phone?: string | null; created_at?: string };
         Relationships: [
           { foreignKeyName: "households_area_id_fkey"; columns: ["area_id"]; referencedRelation: "areas"; referencedColumns: ["id"] },
+        ];
+      };
+      producer_pickup: {
+        Row: { producer_id: string; address_line: string; city: string; postcode: string; lat: number | null; lng: number | null; contact_name: string | null; contact_phone: string | null; created_at: string };
+        Insert: { producer_id: string; address_line: string; city: string; postcode: string; lat?: number | null; lng?: number | null; contact_name?: string | null; contact_phone?: string | null; created_at?: string };
+        Update: { producer_id?: string; address_line?: string; city?: string; postcode?: string; lat?: number | null; lng?: number | null; contact_name?: string | null; contact_phone?: string | null; created_at?: string };
+        Relationships: [
+          { foreignKeyName: "producer_pickup_producer_id_fkey"; columns: ["producer_id"]; referencedRelation: "producers"; referencedColumns: ["id"] },
+        ];
+      };
+      courier_jobs: {
+        Row: { id: string; order_id: string; producer_id: string; provider: string; provider_job_id: string | null; tracking_url: string | null; status: string; fee_pence: number; created_at: string };
+        Insert: { id?: string; order_id: string; producer_id: string; provider: string; provider_job_id?: string | null; tracking_url?: string | null; status?: string; fee_pence?: number; created_at?: string };
+        Update: { id?: string; order_id?: string; producer_id?: string; provider?: string; provider_job_id?: string | null; tracking_url?: string | null; status?: string; fee_pence?: number; created_at?: string };
+        Relationships: [
+          { foreignKeyName: "courier_jobs_order_id_fkey"; columns: ["order_id"]; referencedRelation: "orders"; referencedColumns: ["id"] },
+          { foreignKeyName: "courier_jobs_producer_id_fkey"; columns: ["producer_id"]; referencedRelation: "producers"; referencedColumns: ["id"] },
         ];
       };
       intent_profiles: {
@@ -187,6 +204,7 @@ export type Database = {
           fulfilment_type: FulfilmentType;
           collection_point_id: string | null;
           delivery_fee_pence: number;
+          courier_provider: string | null;
           created_at: string;
         };
         Insert: {
@@ -196,6 +214,7 @@ export type Database = {
           fulfilment_type: FulfilmentType;
           collection_point_id?: string | null;
           delivery_fee_pence?: number;
+          courier_provider?: string | null;
           created_at?: string;
         };
         Update: {
@@ -205,6 +224,7 @@ export type Database = {
           fulfilment_type?: FulfilmentType;
           collection_point_id?: string | null;
           delivery_fee_pence?: number;
+          courier_provider?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -306,3 +326,5 @@ export type Order = PublicTables["orders"]["Row"];
 export type OrderItem = PublicTables["order_items"]["Row"];
 export type Payout = PublicTables["payouts"]["Row"];
 export type ForwardDemand = PublicTables["forward_demand"]["Row"];
+export type ProducerPickup = PublicTables["producer_pickup"]["Row"];
+export type CourierJob = PublicTables["courier_jobs"]["Row"];

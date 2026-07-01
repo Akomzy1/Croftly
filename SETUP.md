@@ -66,6 +66,31 @@ optional** — without a key, checkout simulates a successful test charge.
 
 ---
 
+## Courier delivery
+
+Courier quoting + job creation are **simulated** in the prototype (no keys, no real
+API). The provider naming reflects the intended production strategy:
+
+- **ambient / hardy goods →** a multi-carrier aggregator — **Sendcloud** (lead; EasyPost
+  if going international).
+- **chilled / same-day →** an on-demand API — **Uber Direct** (lead, widest UK coverage)
+  with **Stuart** as the food-specialist fallback.
+- **highly perishable →** specialist (Stuart) or collection.
+
+Notes:
+- The seed gives every farm + household a real central-**London** address so the simulated
+  quote works (a box can span farms → **one job per farm**, fees summed).
+- `POST /api/webhooks/stuart` is the reference on-demand-courier webhook (HMAC-verified via
+  `STUART_WEBHOOK_SECRET`) that advances order status; it's wired for the future real
+  integration.
+
+The real adapters (`lib/fulfilment/providers/stuart.ts`, `sendcloud.ts`) are **documented
+fallbacks, not called** in the prototype. `STUART_ENV` / `STUART_CLIENT_ID` /
+`STUART_CLIENT_SECRET` / `STUART_WEBHOOK_SECRET` in `.env.local` are unused until a real
+provider is wired in (final choice confirmed against pilot-region coverage + rates).
+
+---
+
 ## After it's up
 
 Open http://localhost:3000 and follow **DEMO.md** for the scripted path. Demo

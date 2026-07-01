@@ -68,6 +68,16 @@ async function ensureProduct(producerId, p) {
   if (error) throw error;
 }
 
+// Pickup/dropoff addresses use real CENTRAL LONDON locations. On-demand courier
+// sandboxes (e.g. Uber Direct / Stuart) only operate within supported cities, so
+// London addresses keep the seam quotable. Phones use Ofcom's reserved-for-fiction
+// +44 7700 900xxx range.
+// PRODUCTION: real farms/households carry their own addresses (captured in-app).
+async function ensureProducerPickup(producerId, pickup) {
+  const { error } = await db.from("producer_pickup").upsert({ producer_id: producerId, ...pickup });
+  if (error) throw error;
+}
+
 async function ensureIntent(householdId, profile) {
   const { data: existing } = await db.from("intent_profiles").select("id").eq("household_id", householdId).maybeSingle();
   if (existing) {
@@ -130,8 +140,23 @@ async function main() {
     ]],
   ];
 
-  for (const [name, presetId, products] of catalogue) {
+  // Courier pickup points (real central-London locations) — one per farm, indexed
+  // to the catalogue order, so the simulated courier quote works for any box.
+  const LONDON_PICKUPS = [
+    { address_line: "Borough Market, 8 Southwark Street", postcode: "SE1 1TL", lat: 51.5055, lng: -0.0905 },
+    { address_line: "Spitalfields Market, 16 Horner Square", postcode: "E1 6EW", lat: 51.5194, lng: -0.075 },
+    { address_line: "Covent Garden, 41 The Market", postcode: "WC2E 8RF", lat: 51.5121, lng: -0.123 },
+    { address_line: "Brixton Village, Coldharbour Lane", postcode: "SW9 8PR", lat: 51.4626, lng: -0.1132 },
+    { address_line: "Maltby Street Market, 41 Maltby Street", postcode: "SE1 3PA", lat: 51.4998, lng: -0.078 },
+    { address_line: "Broadway Market, 1 Broadway Market", postcode: "E8 4PH", lat: 51.5375, lng: -0.0617 },
+    { address_line: "Exmouth Market, 56 Exmouth Market", postcode: "EC1R 4QE", lat: 51.5263, lng: -0.11 },
+    { address_line: "Borough High Street, 100 Borough High St", postcode: "SE1 1LB", lat: 51.5028, lng: -0.092 },
+  ];
+
+  for (const [i, [name, presetId, products]] of catalogue.entries()) {
     const producerId = presetId ?? (await ensureProducer(areaId, name));
+    const pk = LONDON_PICKUPS[i % LONDON_PICKUPS.length];
+    await ensureProducerPickup(producerId, { ...pk, city: "London", contact_name: name, contact_phone: "+44770090001" + i });
     for (const p of products) await ensureProduct(producerId, { allergens: [], is_glut: false, ...p });
   }
 
@@ -139,7 +164,16 @@ async function main() {
   const family = await getOrCreateUser("family@croftly.test", { role: "household", name: "The Okonkwo family", area_id: areaId });
   const { data: familyHh } = await db.from("households").select("id").eq("user_id", family.id).maybeSingle();
   if (familyHh) {
-    await db.from("households").update({ area_id: areaId }).eq("id", familyHh.id);
+    await db.from("households").update({
+      area_id: areaId,
+      address_line: "133 Bethnal Green Road",
+      city: "London",
+      postcode: "E2 7DG",
+      lat: 51.5249,
+      lng: -0.0671,
+      contact_name: "The Okonkwo family",
+      contact_phone: "+447700900002",
+    }).eq("id", familyHh.id);
     await ensureIntent(familyHh.id, {
       budget_pence: 3500,
       cadence: "weekly",
@@ -157,7 +191,16 @@ async function main() {
   const sam = await getOrCreateUser("exact@croftly.test", { role: "household", name: "Sam Rivera", area_id: areaId });
   const { data: samHh } = await db.from("households").select("id").eq("user_id", sam.id).maybeSingle();
   if (samHh) {
-    await db.from("households").update({ area_id: areaId }).eq("id", samHh.id);
+    await db.from("households").update({
+      area_id: areaId,
+      address_line: "55 Baker Street",
+      city: "London",
+      postcode: "W1U 7EU",
+      lat: 51.5171,
+      lng: -0.1575,
+      contact_name: "Sam Rivera",
+      contact_phone: "+447700900003",
+    }).eq("id", samHh.id);
     await ensureIntent(samHh.id, {
       budget_pence: 2000,
       cadence: "weekly",

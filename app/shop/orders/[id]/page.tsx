@@ -6,6 +6,7 @@ import { Badge } from "@/components/croftly/badge";
 import { Icon } from "@/components/croftly/icon";
 import { MoneySplit, type MoneySegment } from "@/components/croftly/money-split";
 import { OrderStatusStub } from "@/components/shop/order-status-stub";
+import { OrderTracking, type TrackingLeg } from "@/components/shop/order-tracking";
 import { formatPence } from "@/lib/money";
 
 type OrderItemRow = {
@@ -45,6 +46,17 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
     .from("payouts")
     .select("farmer_pence, platform_pence")
     .eq("order_id", id);
+
+  // Courier legs (one per farm) — updated by the courier webhook.
+  const { data: courierJobs } = await supabase
+    .from("courier_jobs")
+    .select("status, tracking_url, producers(name)")
+    .eq("order_id", id);
+  const legs: TrackingLeg[] = ((courierJobs ?? []) as unknown as { status: string; tracking_url: string | null; producers: { name: string | null } | null }[]).map((j) => ({
+    producer_name: j.producers?.name ?? "A local farm",
+    status: j.status,
+    tracking_url: j.tracking_url,
+  }));
 
   const farmerPence = (payouts ?? []).reduce((n, p) => n + p.farmer_pence, 0);
   const platformPence = (payouts ?? []).reduce((n, p) => n + p.platform_pence, 0);
@@ -99,7 +111,11 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
         </Card>
 
         <Card padding="lg">
-          <OrderStatusStub fulfilment={order.fulfilment_type} />
+          {order.fulfilment_type === "courier" && legs.length > 0 ? (
+            <OrderTracking status={order.status} legs={legs} />
+          ) : (
+            <OrderStatusStub fulfilment={order.fulfilment_type} />
+          )}
         </Card>
       </div>
     </AppShell>

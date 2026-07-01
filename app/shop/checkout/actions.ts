@@ -6,7 +6,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getShopData } from "@/lib/shop/queries";
 import { getStripe } from "@/lib/stripe/client";
 import { splitLine } from "@/lib/commission";
-import type { FulfilmentType } from "@/lib/supabase/types";
+import {
+  courierFeePence,
+  belowDeliveryMinimum,
+  deliveryShortfallPence,
+  createBoxCourierJobs,
+  addressFromHousehold,
+  addressFromPickup,
+  type PickupInfo,
+} from "@/lib/fulfilment";
+import { formatPence } from "@/lib/money";
+import type { FulfilmentType, ProducerPickup } from "@/lib/supabase/types";
 
 export type PlaceOrderState = { error?: string };
 
@@ -31,16 +41,62 @@ export async function placeOrder(_prev: PlaceOrderState, formData: FormData): Pr
   const today = new Date().toISOString().slice(0, 10);
   const data = await getShopData(today);
   if (data.status !== "ok") return { error: "We couldn't build your box to check out." };
-  const { box, courier } = data;
+  const { box } = data;
   if (box.lines.length === 0) return { error: "Your box is empty." };
 
-  const { data: household } = await supabase.from("households").select("id").eq("user_id", user.id).maybeSingle();
+  // DELIVERY-only soft minimum (D14): courier baskets below MIN_DELIVERY_ORDER_PENCE
+  // are nudged toward free collection, not silently rejected. Collection has NO
+  // minimum, ever — so this check is gated on the courier path only and the
+  // message always offers the no-minimum collection path. (Server-side guard;
+  // the UI surfaces the same nudge.)
+  if (method === "courier" && belowDeliveryMinimum(box.subtotal_pence)) {
+    const more = formatPence(deliveryShortfallPence(box.subtotal_pence));
+    return { error: `Add ${more} more for delivery — or collect this order free from a nearby point, with no minimum.` };
+  }
+
+  const { data: household } = await supabase
+    .from("households")
+    .select("id, address_line, city, postcode, lat, lng, contact_name, contact_phone")
+    .eq("user_id", user.id)
+    .maybeSingle();
   if (!household) return { error: "We couldn't find your household profile." };
 
   const admin = createAdminClient();
   if (!admin) return { error: "Checkout isn't fully configured yet (missing service-role key)." };
 
-  const deliveryFee = method === "courier" && courier ? courier.fee_pence : 0;
+  // ---- Courier: book ONE job per farm (pickup farm → household dropoff) ----
+  // Live, rate-shopped per leg; deterministic (no LLM). Done before order creation
+  // so we charge the real summed fee. Collection skips this entirely.
+  let courierProvider: string | null = null;
+  let courierResult: Awaited<ReturnType<typeof createBoxCourierJobs>> = null;
+  let baseDelivery = 0;
+  if (method === "courier") {
+    const dropoff = addressFromHousehold(household);
+    if (!dropoff) return { error: "Add a delivery address to your profile first — or choose collection (no minimum)." };
+
+    const producerIds = [...new Set(box.lines.map((l) => l.producer_id))];
+    const { data: pickupRows } = await admin.from("producer_pickup").select("*").in("producer_id", producerIds);
+    const pickups = new Map<string, PickupInfo>();
+    for (const row of (pickupRows ?? []) as ProducerPickup[]) {
+      const name = box.lines.find((l) => l.producer_id === row.producer_id)?.producer_name ?? "A local farm";
+      pickups.set(row.producer_id, { producer_name: name, pickup: addressFromPickup(row) });
+    }
+
+    // PRODUCTION: if the DB writes below fail after this point the courier jobs are
+    // orphaned — add idempotency keys + job cancellation/compensation before launch.
+    try {
+      courierResult = await createBoxCourierJobs(box, pickups, dropoff);
+    } catch (e) {
+      return { error: "We couldn't arrange a courier for this box — please choose collection. (" + (e instanceof Error ? e.message : "courier error") + ")" };
+    }
+    if (!courierResult) return { error: "Courier isn't available for this box right now — please choose collection." };
+    baseDelivery = courierResult.total_fee_pence;
+    courierProvider = courierResult.provider;
+  }
+
+  // Free delivery once the basket clears FREE_DELIVERY_THRESHOLD_PENCE; otherwise
+  // the (summed) courier fee is passed through at cost. Collection is always £0.
+  const deliveryFee = method === "courier" ? courierFeePence(box.subtotal_pence, baseDelivery) : 0;
   const totalPence = box.subtotal_pence + deliveryFee;
 
   // PRODUCTION: create a Stripe Checkout Session / PaymentIntent and only create
@@ -69,10 +125,26 @@ export async function placeOrder(_prev: PlaceOrderState, formData: FormData): Pr
       fulfilment_type: method,
       collection_point_id: method === "collection" ? collectionPointId : null,
       delivery_fee_pence: deliveryFee,
+      courier_provider: courierProvider,
     })
     .select("id")
     .single();
   if (oErr || !order) return { error: oErr?.message ?? "Couldn't create the order." };
+
+  // ---- courier_jobs: one row per farm leg (created above via the provider) ----
+  if (courierResult) {
+    const jobRows = courierResult.jobs.map(({ producer_id, job }) => ({
+      order_id: order.id,
+      producer_id,
+      provider: job.provider,
+      provider_job_id: job.providerJobId,
+      tracking_url: job.trackingUrl,
+      status: job.status,
+      fee_pence: job.fee_pence,
+    }));
+    const { error: cjErr } = await admin.from("courier_jobs").insert(jobRows);
+    if (cjErr) return { error: cjErr.message };
+  }
 
   // ---- order_items (per-line commission + farmer split) ----
   const items = box.lines.map((l) => {

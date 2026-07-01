@@ -11,11 +11,24 @@ import { OrderStatusStub } from "@/components/shop/order-status-stub";
 import { useOnline, OfflineNote } from "@/components/pwa/online";
 import { formatPence } from "@/lib/money";
 import { track } from "@/lib/analytics";
-import type { CourierMatch } from "@/lib/fulfilment";
+import {
+  courierFeePence,
+  belowDeliveryMinimum,
+  deliveryShortfallPence,
+} from "@/lib/fulfilment";
 import type { CollectionPointOption } from "@/lib/shop/queries";
 import type { FulfilmentType } from "@/lib/supabase/types";
 
 type Method = FulfilmentType;
+
+// Normalised courier option for display. Built from the LIVE box quote (the
+// summed cheapest-viable per-farm legs); `legs` is shown when a box spans farms.
+export type CourierOption = {
+  fee_pence: number;
+  label: string;
+  eta: string;
+  legs?: { producer_name: string; fee_pence: number }[];
+};
 
 function OptionCard({
   selected,
@@ -79,7 +92,7 @@ export function FulfilmentPicker({
 }: {
   subtotalPence: number;
   collectionPoints: CollectionPointOption[];
-  courier: CourierMatch | null;
+  courier: CourierOption | null;
   coldChainLabel: string;
   defaultMethod: FulfilmentType;
 }) {
@@ -90,9 +103,14 @@ export function FulfilmentPicker({
   const [state, formAction, pending] = useActionState<PlaceOrderState, FormData>(placeOrder, {});
   const { online } = useOnline();
 
-  const deliveryPence = method === "courier" && courier ? courier.fee_pence : 0;
+  // DELIVERY-only soft minimum (D14): courier baskets under MIN_DELIVERY_ORDER_PENCE
+  // are nudged toward free collection, never hard-blocked. Collection has NO minimum.
+  const belowDeliveryMin = method === "courier" && belowDeliveryMinimum(subtotalPence);
+  const deliveryShortfall = deliveryShortfallPence(subtotalPence);
+  // Free over FREE_DELIVERY_THRESHOLD_PENCE; otherwise the courier fee at cost.
+  const deliveryPence = method === "courier" && courier ? courierFeePence(subtotalPence, courier.fee_pence) : 0;
   const totalPence = subtotalPence + deliveryPence;
-  const methodOk = method === "collection" ? pointId !== "" : courierAvailable;
+  const methodOk = method === "collection" ? pointId !== "" : courierAvailable && !belowDeliveryMin;
   const canContinue = methodOk && online; // checkout needs a connection
 
   return (
@@ -134,17 +152,42 @@ export function FulfilmentPicker({
           title="Courier to your door"
           sub={
             courier
-              ? `${courier.name} · ${courier.eta}`
+              ? `${courier.label} · ${courier.eta}`
               : `No courier can carry ${coldChainLabel.toLowerCase()} items to you yet — choose collection.`
           }
           price={courier ? formatPence(courier.fee_pence) : "—"}
           disabled={!courierAvailable}
         />
-        {method === "courier" && courier && (
+        {method === "courier" && courier && belowDeliveryMin && (
+          <Card padding="md" style={{ background: "var(--color-tulip-tree-lighter)", border: "1px solid var(--color-tulip-tree-light)" }}>
+            <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-potters-clay-dark)", lineHeight: "var(--leading-normal)" }}>
+              Add <strong>{formatPence(deliveryShortfall)}</strong> more for delivery — or collect this order free from a nearby point, with no minimum.
+            </p>
+            <div style={{ marginTop: "var(--space-3)" }}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setMethod("collection")}>
+                Collect free instead
+              </Button>
+            </div>
+          </Card>
+        )}
+        {method === "courier" && courier && !belowDeliveryMin && (
           <Card padding="md">
             <p style={{ margin: 0, fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral-dark)", lineHeight: "var(--leading-normal)" }}>
-              We match your box to <strong style={{ color: "var(--color-neutral-darkest)" }}>{courier.name}</strong> — the cheapest courier that can carry your {coldChainLabel.toLowerCase()} box. The fee is passed through at cost; Croftly doesn&apos;t mark it up. There&apos;s no delivery for the farm to run.
+              We match your box to <strong style={{ color: "var(--color-neutral-darkest)" }}>{courier.label}</strong> — the cheapest courier that can carry your {coldChainLabel.toLowerCase()} box. The fee is passed through at cost; Croftly doesn&apos;t mark it up. There&apos;s no delivery for the farm to run.
             </p>
+            {courier.legs && courier.legs.length > 1 && (
+              <div style={{ marginTop: "var(--space-3)", display: "grid", gap: "0.35rem" }}>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-small)", fontWeight: "var(--weight-medium)", color: "var(--color-neutral-darkest)" }}>
+                  Picked up from {courier.legs.length} farms:
+                </span>
+                {courier.legs.map((leg, i) => (
+                  <span key={i} style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral-dark)" }}>
+                    <span>{leg.producer_name}</span>
+                    <span>{formatPence(leg.fee_pence)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </Card>
         )}
       </div>
