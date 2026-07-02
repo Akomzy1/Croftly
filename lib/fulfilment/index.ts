@@ -12,7 +12,7 @@ export {
   type BoxCourierJobs,
   type PickupInfo,
 } from "./quote";
-export { enabledProviders, mapStuartStatus, type CourierProvider, type CourierQuote, type CourierJob, type Address } from "./providers";
+export { enabledProviders, providersForColdChain, mapCourierStatus, type CourierProvider, type CourierQuote, type CourierJob, type Address, type ProviderKind } from "./providers";
 export {
   MIN_DELIVERY_ORDER_PENCE,
   FREE_DELIVERY_THRESHOLD_PENCE,

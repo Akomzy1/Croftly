@@ -66,28 +66,31 @@ optional** — without a key, checkout simulates a successful test charge.
 
 ---
 
-## Courier delivery
+## Courier delivery (Uber Direct)
 
-Courier quoting + job creation are **simulated** in the prototype (no keys, no real
-API). The provider naming reflects the intended production strategy:
+**Uber Direct** is the lead on-demand courier and is **live when its creds are set** —
+otherwise the app falls back to a deterministic **simulation** so dev never breaks.
 
-- **ambient / hardy goods →** a multi-carrier aggregator — **Sendcloud** (lead; EasyPost
-  if going international).
-- **chilled / same-day →** an on-demand API — **Uber Direct** (lead, widest UK coverage)
-  with **Stuart** as the food-specialist fallback.
+```
+UBER_CUSTOMER_ID=<your Direct org UUID>
+UBER_CLIENT_ID=<from developer.uber.com>
+UBER_CLIENT_SECRET=<...>
+UBER_WEBHOOK_SECRET=<optional; if blank the client secret verifies the webhook>
+```
+
+Provider strategy (cold-chain routing unchanged):
+- **ambient / hardy goods →** multi-carrier aggregator — **Sendcloud** (lead; EasyPost if intl).
+- **chilled / same-day →** on-demand — **Uber Direct** (lead, widest UK coverage), **Stuart** food-specialist fallback.
 - **highly perishable →** specialist (Stuart) or collection.
 
 Notes:
-- The seed gives every farm + household a real central-**London** address so the simulated
-  quote works (a box can span farms → **one job per farm**, fees summed).
-- `POST /api/webhooks/stuart` is the reference on-demand-courier webhook (HMAC-verified via
-  `STUART_WEBHOOK_SECRET`) that advances order status; it's wired for the future real
-  integration.
+- The seed gives every farm + household a real central-**London** address so quotes work
+  (a box can span farms → **one job per farm**, fees summed).
+- `POST /api/webhooks/uber` (HMAC-verified) advances order status; needs a public URL → set
+  it in the Uber Direct dashboard after deploying (or use a tunnel locally).
 
-The real adapters (`lib/fulfilment/providers/stuart.ts`, `sendcloud.ts`) are **documented
-fallbacks, not called** in the prototype. `STUART_ENV` / `STUART_CLIENT_ID` /
-`STUART_CLIENT_SECRET` / `STUART_WEBHOOK_SECRET` in `.env.local` are unused until a real
-provider is wired in (final choice confirmed against pilot-region coverage + rates).
+The `stuart.ts` / `sendcloud.ts` adapters are **documented fallbacks, not selected**. The
+`STUART_*` keys are unused until Stuart is wired into the rate-shop.
 
 ---
 

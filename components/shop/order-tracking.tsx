@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Icon } from "@/components/croftly/icon";
-import { mapStuartStatus } from "@/lib/fulfilment";
+import { mapCourierStatus } from "@/lib/fulfilment";
 import type { OrderStatus } from "@/lib/supabase/types";
 
 // Courier tracking: driven by the order status + per-farm legs that the courier
@@ -71,7 +71,7 @@ export function OrderTracking({ status, legs }: { status: OrderStatus; legs: Tra
         {legs.map((leg, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
             <span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-neutral-darkest)" }}>
-              {leg.producer_name} <span style={{ color: "var(--color-neutral)" }}>· {LEG_LABEL[mapStuartStatus(leg.status)]}</span>
+              {leg.producer_name} <span style={{ color: "var(--color-neutral)" }}>· {LEG_LABEL[mapCourierStatus(leg.status)]}</span>
             </span>
             {leg.tracking_url && (
               <a href={leg.tracking_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: "var(--font-body)", fontSize: "var(--text-small)", color: "var(--color-olive-drab-dark)", textDecoration: "none" }}>

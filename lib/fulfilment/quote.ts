@@ -1,7 +1,7 @@
 import type { ComposedBox } from "@/lib/matching";
 import type { Household, ProducerPickup } from "@/lib/supabase/types";
 import { boxColdChainClass } from "./coldChain";
-import { enabledProviders, type Address, type CourierQuote, type CourierJob, type FulfilmentLeg } from "./providers";
+import { providersForColdChain, type Address, type CourierQuote, type CourierJob, type FulfilmentLeg } from "./providers";
 
 // Box-level courier orchestration. A box can span multiple farms; a courier job is
 // one pickup→one dropoff, so we run ONE LEG PER DISTINCT PRODUCER (farm → household)
@@ -56,7 +56,7 @@ function legFor(pickup: Address, dropoff: Address, box: ComposedBox): Fulfilment
  */
 export async function quoteBoxCourier(box: ComposedBox, pickups: Map<string, PickupInfo>, dropoff: Address): Promise<BoxCourierQuote | null> {
   const coldChain = boxColdChainClass(box.lines);
-  const providers = enabledProviders().filter((p) => p.canHandle(coldChain));
+  const providers = providersForColdChain(coldChain).filter((p) => p.canHandle(coldChain));
   if (providers.length === 0) return null;
 
   const legs: BoxCourierLeg[] = [];
@@ -81,7 +81,7 @@ export async function quoteBoxCourier(box: ComposedBox, pickups: Map<string, Pic
  */
 export async function createBoxCourierJobs(box: ComposedBox, pickups: Map<string, PickupInfo>, dropoff: Address): Promise<BoxCourierJobs | null> {
   const coldChain = boxColdChainClass(box.lines);
-  const providers = enabledProviders().filter((p) => p.canHandle(coldChain));
+  const providers = providersForColdChain(coldChain).filter((p) => p.canHandle(coldChain));
   if (providers.length === 0) return null;
 
   const jobs: Array<{ producer_id: string; job: CourierJob }> = [];

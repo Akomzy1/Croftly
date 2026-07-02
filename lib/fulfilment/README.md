@@ -22,12 +22,21 @@ for the chosen pilot region.
 
 ## Seam (`providers/`)
 Pluggable `CourierProvider` adapters (quote + createJob), rate-shopped per leg:
-- `providers/mock.ts` — the **active** provider in the prototype (simulation; names the real leads
-  above so the demo is faithful). No network calls.
-- `providers/stuart.ts` — **documented fallback** adapter (OAuth2 → `/v2/jobs/pricing` + `/v2/jobs`).
-  **Not wired into selection** (see `providers/index.ts`). Also exports `mapStuartStatus()`.
+- `providers/uber.ts` — **Uber Direct**, the LEAD adapter (OAuth2 → `/delivery_quotes` + `/deliveries`).
+  **Active whenever `UBER_*` creds are present** (see `providers/index.ts`).
+- `providers/mock.ts` — deterministic **simulation fallback** (used when no `UBER_*` creds); names the
+  real leads so the demo stays faithful. No network calls.
+- `providers/stuart.ts` — **documented fallback** adapter (food specialist; OAuth2 → `/v2/jobs/pricing`
+  + `/v2/jobs`). Not wired into selection.
 - `providers/sendcloud.ts` — **stub** for the ambient aggregator (not wired yet).
-- `providers/index.ts` — `enabledProviders()` returns `[mockProvider]` in the prototype.
+- `providers/status.ts` — `mapCourierStatus()` maps Uber + Stuart statuses → `order_status`.
+- `providers/index.ts` — the **selector**: `COURIER_PROVIDER` (`mock` | `stuart` | `uber`) picks the
+  on-demand provider (default = Stuart when its keys are present, else mock). `providersForColdChain()`
+  routes by tier: **ambient → aggregator** (Sendcloud stub → mock for now); **chilled / same-day →
+  on-demand** (the selected real provider, or mock fallback).
+
+Providers are swapped **without touching checkout/order code** — those only call the seam in `quote.ts`.
+Stuart is **sandbox-only**: real bookings are blocked unless `STUART_ALLOW_PRODUCTION=1`.
 
 ## Box orchestration (`quote.ts`)
 A box can span multiple farms; a courier job is one pickup→one dropoff, so we run **one leg per
@@ -40,9 +49,10 @@ distinct producer** (farm → household) and **sum the fees**:
 `coldChain.ts` (`boxColdChainClass`) is the deterministic viability gate. `constants.ts` holds the
 £20 courier minimum + £45 free-delivery thresholds.
 
-## Webhook
-`app/api/webhooks/stuart/route.ts` is the reference on-demand-courier webhook (HMAC-verified): it
-updates the matching `courier_jobs` leg and recomputes the parent order status (slowest leg wins).
+## Webhooks
+`app/api/webhooks/uber/route.ts` (lead) and `app/api/webhooks/stuart/route.ts` (fallback) share
+`lib/fulfilment/webhook.ts` — HMAC-verify the payload, update the matching `courier_jobs` leg, and
+recompute the parent order status (slowest leg wins).
 
 ## PRODUCTION notes
 - Replace the simulation with the real integrations above (aggregator for ambient; on-demand for

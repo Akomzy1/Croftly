@@ -1,53 +1,25 @@
-import type { ColdChainClass, OrderStatus } from "@/lib/supabase/types";
+import type { ColdChainClass } from "@/lib/supabase/types";
 import type { CourierProvider, CourierQuote, CourierJob, FulfilmentLeg, Address } from "./types";
 
-// Map a Stuart job/delivery status onto Croftly's order_status enum. Used by the
-// webhook to advance the order. Unknown statuses fall back to "confirmed".
-export function mapStuartStatus(status: string): OrderStatus {
-  switch (status) {
-    case "new":
-    case "scheduled":
-    case "pending":
-      return "confirmed";
-    case "picking":
-    case "almost_picking":
-    case "waiting_at_pickup":
-    case "in_progress":
-      return "preparing";
-    case "delivering":
-    case "almost_delivering":
-    case "waiting_at_dropoff":
-      return "out_for_delivery";
-    case "delivered":
-    case "finished":
-      return "delivered";
-    case "cancelled":
-    case "canceled":
-    case "expired":
-    case "failed":
-      return "cancelled";
-    default:
-      return "confirmed";
-  }
-}
+// (Status mapping now lives in providers/status.ts → mapCourierStatus, shared with
+// Uber Direct.)
 
-// Stuart — on-demand courier adapter. Stuart is the food-specialist FALLBACK for the
-// chilled/same-day layer (better for fresh/chilled but denser in cities, thinner in
-// rural areas); Uber Direct is the intended LEAD (widest UK coverage). DETERMINISTIC,
-// no LLM (CLAUDE.md rule 4); the platform integrates couriers, never runs a fleet
-// (rule 2).
+// Stuart — the FIRST REAL on-demand courier provider (chilled / same-day layer).
+// SANDBOX by default; selected via COURIER_PROVIDER=stuart (or as the default when
+// Stuart keys are present). Stuart is the food-specialist fallback long-term; Uber
+// Direct is the intended LEAD (wider UK coverage) once approved. DETERMINISTIC, no
+// LLM (CLAUDE.md rule 4); the platform integrates couriers, never runs a fleet (rule 2).
 //
-// PROTOTYPE: this adapter is a DOCUMENTED FALLBACK — it is NOT wired into provider
-// selection (see providers/index.ts → enabledProviders()), so no real API call is
-// made in the prototype. Kept as the reference implementation for the future
-// on-demand integration.
+// This adapter never leaks into checkout/order code — callers only use the seam
+// (lib/fulfilment/quote.ts). Keys/URLs are env-based; nothing is hard-coded.
 //
 // PRODUCTION notes:
-// - Cold-chain "chilled" isn't a first-class param here; we map cold-chain ->
-//   transport type as a best-effort proxy. Real temperature-controlled delivery
-//   needs a specialist contract.
+// - SANDBOX-ONLY here: real bookings are blocked unless STUART_ALLOW_PRODUCTION=1.
+// - Cold-chain "chilled" isn't a first-class Stuart param; we map cold-chain ->
+//   transport type as a best-effort proxy. Real temperature-controlled needs a
+//   specialist contract.
 // - Sandbox only operates within supported cities (e.g. London) — addresses must
-//   resolve there.
+//   resolve there. Region coverage must be confirmed for the chosen pilot region.
 
 type StuartCreds = { id: string; secret: string; base: string };
 
@@ -139,6 +111,13 @@ function makeStuart(creds: StuartCreds): CourierProvider {
       }
     },
     async createJob(leg: FulfilmentLeg): Promise<CourierJob> {
+      // SAFETY: this project is sandbox-only. Refuse to dispatch a REAL courier
+      // against production unless explicitly opted in. // PRODUCTION: remove this
+      // guard (or set STUART_ALLOW_PRODUCTION=1) for a genuine launch.
+      const isProd = !creds.base.includes("sandbox");
+      if (isProd && process.env.STUART_ALLOW_PRODUCTION !== "1") {
+        throw new Error("Refusing to create a real Stuart job against production (sandbox-only). Set STUART_ALLOW_PRODUCTION=1 to override.");
+      }
       const res = await stuartFetch(creds, "/v2/jobs", jobBody(leg, true));
       if (!res.ok) throw new Error(`Stuart createJob failed: ${res.status} ${await res.text().catch(() => "")}`);
       const j = (await res.json()) as {
@@ -159,11 +138,15 @@ function makeStuart(creds: StuartCreds): CourierProvider {
   };
 }
 
-/** Returns a live Stuart provider, or null when creds are absent (graceful fallback to mock). */
+/** Returns a Stuart provider, or null when creds are absent (graceful fallback to mock). */
 export function getStuart(): CourierProvider | null {
   const id = process.env.STUART_CLIENT_ID;
   const secret = process.env.STUART_CLIENT_SECRET;
   if (!id || !secret) return null;
-  const base = process.env.STUART_ENV === "production" ? "https://api.stuart.com" : "https://api.sandbox.stuart.com";
+  // Base URL is configurable; defaults to sandbox. // PRODUCTION: set STUART_ENV=production
+  // (or STUART_BASE_URL) + STUART_ALLOW_PRODUCTION=1 for real bookings.
+  const base =
+    process.env.STUART_BASE_URL ||
+    (process.env.STUART_ENV === "production" ? "https://api.stuart.com" : "https://api.sandbox.stuart.com");
   return makeStuart({ id, secret, base });
 }
